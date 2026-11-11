@@ -2,6 +2,9 @@
 
 # translatex
 
+> [!IMPORTANT]
+> translatex is frozen and continues as [not-a-bot](https://github.com/w21180239/not-a-bot).
+
 **命令行 AI 人性化改写：把 AI 味的文字改得像人写的。同时也是给 Agent 用的免费翻译，一个二进制，不用 API Key。**
 
 用你自己的 Claude 或 OpenCode 订阅，对 AI 生成的文字做人性化改写和润色。人名、数字、代码原样保留，丢了什么会明确告诉你。同一个 6 MB 二进制还能通过 28 个翻译引擎翻译，其中 14 个是免费网页接口、不需要 Key，并带一份 skill，24 家编码 Agent 复制即用。
