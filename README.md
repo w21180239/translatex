@@ -5,7 +5,7 @@
 **Humanize AI-sounding text from the command line. Translation for your agent too: one binary, no API key.**
 
 > [!IMPORTANT]
-> translatex is frozen. It continues as [not-a-bot](https://github.com/w21180239/not-a-bot) (`npm install -g not-a-bot`), which adds `nab lint` and an agent skill. `translatex roundtrip` is `not-a-bot rewrite` there.
+> translatex is frozen. It continues as [not-a-bot](https://github.com/w21180239/not-a-bot) (`npm install -g not-a-bot-cli`), which adds `nab lint` and an agent skill. `translatex roundtrip` is `not-a-bot rewrite` there.
 
 Rewrite AI-generated text so it reads like a person wrote it, using your own Claude or OpenCode subscription. Names, numbers and code stay intact, and translatex tells you if anything went missing. The same 6 MB binary translates through 28 engines, 14 of them free web endpoints that need no key, and ships one skill file that 24 coding agents can install with a copy.
 
