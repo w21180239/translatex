@@ -54,7 +54,7 @@ translatex roundtrip "…" --from en --chain "google:zh,edge:ja,google:en"
 | `--request-id` | 自动生成 | 关联 id |
 | `--json` | — | 完整 `RoundtripRequest`，覆盖其它参数 |
 
-选跳规则，先匹配者生效：`--chain`、`--preset`、`--depth`、`--pivot`，最后是配置里的 `roundtrip_preset`（默认 `light`，两跳机器翻译）。响应带 `chain`、`hops`、`missingFacts` 和 `warnings`；每次运行后都要读 `missingFacts`。链、预设与修复跳见 [roundtrip/02-chains-presets-and-llm.md](../roundtrip/02-chains-presets-and-llm.md)。
+选跳规则，先匹配者生效：`--chain`、`--preset`、`--depth`、`--pivot`，最后是配置里的 `roundtrip_preset`（默认 `light`，两跳机器翻译）。响应带 `chain`、`hops`、`missingFacts` 和 `warnings`；每次运行后都要读 `missingFacts`。链与预设见 [roundtrip/02-chains-and-presets.md](../roundtrip/02-chains-and-presets.md)。
 
 结果永远回到源语言。`pivot: auto` 对非中文用中文、对中文用英文；技术类英文的官方备选是 `--pivot ja`，见 [roundtrip/01-pivot-choice.md](../roundtrip/01-pivot-choice.md)。
 

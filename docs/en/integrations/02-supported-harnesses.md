@@ -112,10 +112,9 @@ Both documents carry the same four rules, and nothing else is required:
 1. Run `translatex`, do not translate by hand.
 2. Read `text` from the JSON; `provider` and `detectedSource` come from the tool.
 3. Pass `--preserve` for code, paths, identifiers and URLs.
-4. For AI-sounding text, `roundtrip --preset standard --preserve @code` rebuilds the
-   sentences; the machine-translation presets keep them, so delete AI filler
-   yourself before using those. Check `missingFacts` and `warnings`, and
-   report them.
+4. To read a translation back, use `roundtrip --preserve @code`: it is a
+   machine-translation round trip and keeps the sentence structure. Check
+   `missingFacts` and `warnings`, and report them.
 
 The full skill adds the error table and the retry rules; see
 [`integrations/skill/translatex/SKILL.md`](../../../integrations/skill/translatex/SKILL.md).
