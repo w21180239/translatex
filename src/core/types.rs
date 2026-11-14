@@ -32,8 +32,8 @@ fn default_auto() -> String {
 }
 
 /// Round trip through one or more hops and back to the source language. Each
-/// hop forces the text through a different syntax; LLM hops also rewrite the
-/// sentence shapes that machine translation keeps.
+/// hop forces the text through a different syntax, so the way back cannot
+/// reuse the original phrasing.
 ///
 /// Hop selection, first match wins: `chain`, `preset`, `depth`, a non-auto
 /// `pivot`, then the configured `roundtrip_preset`.
@@ -47,7 +47,7 @@ pub struct RoundtripRequest {
     /// (English for Chinese, Chinese for everything else).
     #[serde(default = "default_auto")]
     pub pivot: String,
-    /// Hop specs `[engine:]lang`, e.g. `["claude-cli:zh", "google:fi", "edge:en"]`.
+    /// Hop specs `[engine:]lang`, e.g. `["google:zh", "google:fi", "edge:en"]`.
     /// No engine (or `auto`) uses the fallback race. A hop back to the source
     /// is appended when the last hop is not the source language.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -65,37 +65,13 @@ pub struct RoundtripRequest {
     pub fallback_chain: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub preserve: Vec<String>,
-    /// Per-hop timeout; also bounds each scorer call.
+    /// Per-hop timeout.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeout_ms: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub idempotency_key: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub metadata: BTreeMap<String, serde_json::Value>,
-    /// Detector command: reads the candidate on stdin and prints a score in
-    /// [0,1] (higher = more AI-like) as its last line. Split into program and
-    /// args without a shell. Overrides the configured `roundtrip_scorer`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub scorer: Option<String>,
-    /// Independent runs of the planned chain (1-5); above 1 needs a scorer.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub best_of: Option<u8>,
-    /// Climb the preset ladder until the selected score is at or below this
-    /// (0-1). Needs a scorer.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub target_score: Option<f64>,
-}
-
-/// One finished run of a round trip, as scored for selection.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct Candidate {
-    /// Preset name or comma-joined chain that produced it.
-    pub preset_or_chain: String,
-    /// `null` when no scorer ran or the scorer failed.
-    pub score: Option<f64>,
-    /// Number of facts the candidate lost.
-    pub missing_facts: usize,
 }
 
 /// One translation step of a round trip.
@@ -108,37 +84,6 @@ pub struct Hop {
     /// Output of this hop, kept so a caller can audit it.
     pub text: String,
     pub latency_ms: u64,
-    /// Repairs proposed by a `fix` hop and whether each was applied.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub edits: Option<Vec<HopEdit>>,
-}
-
-/// What a `fix` hop edit repairs. Fact edits skip the copy-back budget.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub enum EditKind {
-    Fact,
-    #[default]
-    Meaning,
-}
-
-/// One meaning repair from a `fix` hop: replace `from` (a span of the hop
-/// input) with `to`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct HopEdit {
-    pub from: String,
-    pub to: String,
-    #[serde(default)]
-    pub why: String,
-    /// `fact` when applying it restored a fact the rewrite had lost.
-    #[serde(default)]
-    pub kind: EditKind,
-    #[serde(default)]
-    pub applied: bool,
-    /// Why the edit was skipped.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -161,15 +106,6 @@ pub struct RoundtripResponse {
     pub chars: Option<usize>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub warnings: Vec<String>,
-    /// Detector score of the returned text; `null` without a usable scorer.
-    #[serde(default)]
-    pub score: Option<f64>,
-    /// Scorer program name (no arguments) when one was configured.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub scorer: Option<String>,
-    /// Every run, in order, when more than one ran. Texts are not included.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub candidates: Vec<Candidate>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -220,7 +156,6 @@ pub struct ProviderInfo {
 pub enum ProviderKind {
     Web,      // Web scraping / reverse-engineered endpoints (PRIMARY)
     Official, // Official APIs (FALLBACK)
-    Llm,      // LLM-based translation
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

@@ -118,11 +118,10 @@ fn provider_catalogue_honours_kind_and_priority_bands() {
             info.name
         );
 
-        // Bands are a contract: web 1-12, official 20-27, LLM 40+.
+        // Bands are a contract: web 1-12, official 20-27.
         let band = match info.kind {
             ProviderKind::Web => 1..=19,
             ProviderKind::Official => 20..=39,
-            ProviderKind::Llm => 40..=99,
         };
         assert!(
             band.contains(&info.priority),

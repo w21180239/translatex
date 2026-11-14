@@ -42,25 +42,6 @@
 
 All official providers are registered only when their credential set is complete. `translatex providers` reflects that.
 
-## LLM providers
-
-| # | Provider | Id | Fields |
-| --- | --- | --- | --- |
-| 40 | OpenAI | `openai` | `api_key`, optional `base_url`, `model` |
-| 41 | Anthropic | `anthropic` | `api_key`, optional `model` |
-| 42 | DeepSeek | `deepseek` | `api_key`, optional `model` |
-
-LLMs translate through a chat completion prompt. They are the last resort because they cost per token and can paraphrase instead of translating.
-
-### Local agent CLIs
-
-| # | Provider | Id | Runs | Quota | Default model |
-| --- | --- | --- | --- | --- | --- |
-| 60 | Claude Code CLI | `claude-cli` | `claude -p` | your Claude subscription | haiku |
-| 61 | OpenCode CLI | `opencode-cli` | `opencode run` | your OpenCode quota | `opencode-go/deepseek-v4.1-flash` |
-
-No API key. Set `model` and `bin` under `[provider.claude-cli]` or `[provider.opencode-cli]`. They never join the automatic chain: they run when named, as a `roundtrip` hop, a preset, `--provider` or `--fallback`. See [../roundtrip/02-chains-presets-and-llm.md](../roundtrip/02-chains-presets-and-llm.md).
-
 ## Retired names
 
 | Name | Resolution |

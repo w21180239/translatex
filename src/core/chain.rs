@@ -8,13 +8,11 @@ use crate::core::types::RoundtripRequest;
 
 pub const PRESETS: &[&str] = &["light", "standard", "strong"];
 
-/// Hop target: a language, back to the (possibly still undetected) source, or
-/// a repair pass that stays in the current language.
+/// Hop target: a language, or back to the (possibly still undetected) source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Target {
     Lang(String),
     Source,
-    Fix,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,26 +33,14 @@ pub struct Plan {
     pub appended_back: bool,
 }
 
-/// `[engine:]lang` (`claude-cli:zh`, `zh`, `auto:ja`) or `engine:fix`, a
-/// repair pass by an LLM engine (`is_llm`) against the original text.
-pub fn parse_hop(spec: &str, is_llm: &dyn Fn(&str) -> bool) -> Result<HopSpec> {
+/// `[engine:]lang` (`google:zh`, `zh`, `auto:ja`).
+pub fn parse_hop(spec: &str) -> Result<HopSpec> {
     let spec = spec.trim();
     let (engine, lang) = match spec.split_once(':') {
         Some((engine, lang)) => (Some(engine.trim().to_lowercase()), lang),
         None => (None, spec),
     };
     let engine = engine.filter(|e| !e.is_empty() && e != "auto");
-    if lang.trim().eq_ignore_ascii_case("fix") {
-        return match engine {
-            Some(engine) if is_llm(&engine) => Ok(HopSpec {
-                engine: Some(engine),
-                to: Target::Fix,
-            }),
-            _ => Err(Error::InvalidInput(format!(
-                "chain hop {spec:?}: fix needs an LLM engine, e.g. claude-cli:fix"
-            ))),
-        };
-    }
     let code = normalize(lang);
     if code == "auto" || !is_known(&code) {
         return Err(Error::InvalidInput(format!(
@@ -71,17 +57,12 @@ pub fn parse_hop(spec: &str, is_llm: &dyn Fn(&str) -> bool) -> Result<HopSpec> {
 /// Hops for a request. `source` is the normalised source language (`auto`
 /// allowed). Precedence: `chain` > `preset` > `depth` > non-auto `pivot` >
 /// configured `roundtrip_preset`.
-pub fn plan(
-    req: &RoundtripRequest,
-    settings: &Settings,
-    source: &str,
-    is_llm: &dyn Fn(&str) -> bool,
-) -> Result<Plan> {
+pub fn plan(req: &RoundtripRequest, settings: &Settings, source: &str) -> Result<Plan> {
     if !req.chain.is_empty() {
-        return explicit(&req.chain, source, is_llm);
+        return explicit(&req.chain, source);
     }
     if let Some(preset) = &req.preset {
-        return expand_preset(preset, source, settings, is_llm);
+        return expand_preset(preset, source, settings);
     }
     if let Some(depth) = req.depth {
         return expand_depth(depth, source, settings);
@@ -90,17 +71,16 @@ pub fn plan(
     if pivot != "auto" {
         return single_pivot(&pivot, source);
     }
-    expand_preset(&settings.roundtrip_preset(), source, settings, is_llm)
+    expand_preset(&settings.roundtrip_preset(), source, settings)
 }
 
-fn explicit(chain: &[String], source: &str, is_llm: &dyn Fn(&str) -> bool) -> Result<Plan> {
+fn explicit(chain: &[String], source: &str) -> Result<Plan> {
     let mut hops = chain
         .iter()
-        .map(|s| parse_hop(s, is_llm))
+        .map(|s| parse_hop(s))
         .collect::<Result<Vec<_>>>()?;
     let mut prev = source.to_string();
     for hop in &hops {
-        // A repair pass stays in the current language.
         let Target::Lang(lang) = &hop.to else {
             continue;
         };
@@ -193,42 +173,23 @@ fn mt(langs: Vec<String>, guessed: bool) -> Plan {
     }
 }
 
-fn expand_preset(
-    name: &str,
-    source: &str,
-    settings: &Settings,
-    is_llm: &dyn Fn(&str) -> bool,
-) -> Result<Plan> {
-    let name = name.trim().to_lowercase();
-    let llm = settings.roundtrip_llm();
-    let hop = |engine: &str, to: Target| HopSpec {
-        engine: Some(engine.to_string()),
-        to,
-    };
-    let lang = |code: &str| Target::Lang(code.to_string());
-    let out = if is_chinese(source) { "en" } else { "zh" };
-    let hops = match name.as_str() {
-        "light" => return expand_depth(2, source, settings),
-        "standard" => vec![hop(&llm, lang(out)), hop(&llm, Target::Source)],
-        "strong" => vec![
-            hop(&llm, lang(out)),
-            hop(&llm, lang("ja")),
-            hop("google", lang("fi")),
-            hop("edge", Target::Source),
-            parse_hop(&format!("{llm}:fix"), is_llm)?,
-        ],
-        other => {
-            return Err(Error::InvalidInput(format!(
-                "unknown roundtrip preset {other:?}; valid: {}",
-                PRESETS.join(", ")
-            )))
+fn expand_preset(name: &str, source: &str, settings: &Settings) -> Result<Plan> {
+    match name.trim().to_lowercase().as_str() {
+        "light" => expand_depth(2, source, settings),
+        "standard" => expand_depth(3, source, settings),
+        // Alternate two engines so each hop meets a different model.
+        "strong" => {
+            let mut plan = expand_depth(3, source, settings)?;
+            for (i, hop) in plan.hops.iter_mut().enumerate() {
+                hop.engine = Some(if i % 2 == 0 { "google" } else { "edge" }.to_string());
+            }
+            Ok(plan)
         }
-    };
-    Ok(Plan {
-        hops,
-        guessed: source == "auto",
-        appended_back: false,
-    })
+        other => Err(Error::InvalidInput(format!(
+            "unknown roundtrip preset {other:?}; valid: {}",
+            PRESETS.join(", ")
+        ))),
+    }
 }
 
 /// Language for a hop back to the source: the detected language when known,
@@ -251,79 +212,13 @@ pub fn resolve_source(detected: &str, first_hop: &str, prev: &str) -> String {
 mod tests {
     use super::*;
 
-    fn llm(name: &str) -> bool {
-        name.ends_with("-cli")
-    }
-
-    #[test]
-    fn fix_hops_need_an_llm_engine() {
-        assert_eq!(
-            parse_hop("claude-cli:fix", &llm).unwrap(),
-            HopSpec {
-                engine: Some("claude-cli".into()),
-                to: Target::Fix
-            }
-        );
-        for bad in ["google:fix", "fix", "auto:fix"] {
-            assert_eq!(
-                parse_hop(bad, &llm).unwrap_err().code(),
-                "INVALID_INPUT",
-                "{bad}"
-            );
-        }
-    }
-
-    #[test]
-    fn chain_ending_in_fix_adds_no_return_hop() {
-        let mut r = req();
-        r.chain = vec!["zh".into(), "edge:en".into(), "opencode-cli:fix".into()];
-        let p = plan(&r, &Settings::default(), "en", &llm).unwrap();
-        assert_eq!(langs(&p), vec!["zh", "en", "FIX"]);
-        assert!(!p.appended_back);
-
-        // A fix outside the source language still returns afterwards.
-        r.chain = vec!["zh".into(), "claude-cli:fix".into()];
-        let p = plan(&r, &Settings::default(), "en", &llm).unwrap();
-        assert_eq!(langs(&p), vec!["zh", "FIX", "SRC"]);
-        // A fix between hops does not count as a language change.
-        r.chain = vec!["zh".into(), "claude-cli:fix".into(), "zh".into()];
-        assert!(plan(&r, &Settings::default(), "en", &llm).is_err());
-    }
-
-    #[test]
-    fn strong_preset_ends_with_a_repair_pass() {
-        let mut r = req();
-        let s = Settings::default();
-        r.preset = Some("strong".into());
-        let p = plan(&r, &s, "zh", &llm).unwrap();
-        assert_eq!(langs(&p), vec!["en", "ja", "fi", "SRC", "FIX"]);
-        assert_eq!(
-            engines(&p),
-            vec![
-                "opencode-cli",
-                "opencode-cli",
-                "google",
-                "edge",
-                "opencode-cli"
-            ]
-        );
-        let s = Settings {
-            roundtrip_llm: Some("google".into()),
-            ..Settings::default()
-        };
-        assert_eq!(
-            plan(&r, &s, "en", &llm).unwrap_err().code(),
-            "INVALID_INPUT"
-        );
-    }
-
     #[test]
     fn old_preset_names_are_rejected() {
         let s = Settings::default();
         for old in ["mt", "mt-deep", "llm", "mt-fix", "llm-fix"] {
             let mut r = req();
             r.preset = Some(old.into());
-            let err = plan(&r, &s, "en", &llm).unwrap_err();
+            let err = plan(&r, &s, "en").unwrap_err();
             assert_eq!(err.code(), "INVALID_INPUT", "{old}");
             assert!(err.to_string().contains("light, standard, strong"), "{old}");
         }
@@ -333,8 +228,7 @@ mod tests {
     fn default_preset_is_light() {
         let s = Settings::default();
         assert_eq!(s.roundtrip_preset(), "light");
-        assert_eq!(s.roundtrip_ladder(), vec!["standard", "strong"]);
-        let p = plan(&req(), &s, "en", &llm).unwrap();
+        let p = plan(&req(), &s, "en").unwrap();
         assert_eq!(langs(&p), vec!["zh", "ja", "SRC"]);
     }
 
@@ -348,7 +242,6 @@ mod tests {
             .map(|h| match &h.to {
                 Target::Lang(l) => l.clone(),
                 Target::Source => "SRC".into(),
-                Target::Fix => "FIX".into(),
             })
             .collect()
     }
@@ -363,34 +256,30 @@ mod tests {
     #[test]
     fn hop_specs_parse() {
         assert_eq!(
-            parse_hop("claude-cli:zh-CN", &llm).unwrap(),
+            parse_hop("google:zh-CN").unwrap(),
             HopSpec {
-                engine: Some("claude-cli".into()),
+                engine: Some("google".into()),
                 to: Target::Lang("zh".into())
             }
         );
-        assert_eq!(parse_hop(" ja ", &llm).unwrap().engine, None);
-        assert_eq!(parse_hop("auto:fi", &llm).unwrap().engine, None);
+        assert_eq!(parse_hop(" ja ").unwrap().engine, None);
+        assert_eq!(parse_hop("auto:fi").unwrap().engine, None);
         for bad in ["klingon", "google:", "edge:auto", ""] {
-            assert_eq!(
-                parse_hop(bad, &llm).unwrap_err().code(),
-                "INVALID_INPUT",
-                "{bad}"
-            );
+            assert_eq!(parse_hop(bad).unwrap_err().code(), "INVALID_INPUT", "{bad}");
         }
     }
 
     #[test]
     fn explicit_chain_appends_the_way_back() {
         let mut r = req();
-        r.chain = vec!["claude-cli:zh".into(), "google:fi".into()];
-        let p = plan(&r, &Settings::default(), "en", &llm).unwrap();
+        r.chain = vec!["google:zh".into(), "google:fi".into()];
+        let p = plan(&r, &Settings::default(), "en").unwrap();
         assert_eq!(langs(&p), vec!["zh", "fi", "SRC"]);
-        assert_eq!(engines(&p), vec!["claude-cli", "google", "auto"]);
+        assert_eq!(engines(&p), vec!["google", "google", "auto"]);
         assert!(p.appended_back && !p.guessed);
 
         r.chain = vec!["zh".into(), "edge:en".into()];
-        let p = plan(&r, &Settings::default(), "en", &llm).unwrap();
+        let p = plan(&r, &Settings::default(), "en").unwrap();
         assert_eq!(langs(&p), vec!["zh", "en"], "already ends in the source");
         assert!(!p.appended_back);
     }
@@ -399,10 +288,10 @@ mod tests {
     fn explicit_chain_rejects_repeated_languages() {
         let mut r = req();
         r.chain = vec!["zh".into(), "google:zh".into()];
-        let err = plan(&r, &Settings::default(), "en", &llm).unwrap_err();
+        let err = plan(&r, &Settings::default(), "en").unwrap_err();
         assert_eq!(err.code(), "INVALID_INPUT");
         r.chain = vec!["en".into(), "zh".into()];
-        let err = plan(&r, &Settings::default(), "en", &llm).unwrap_err();
+        let err = plan(&r, &Settings::default(), "en").unwrap_err();
         assert_eq!(err.code(), "INVALID_INPUT", "first hop equals the source");
     }
 
@@ -410,21 +299,19 @@ mod tests {
     fn depth_follows_the_source_family() {
         let mut r = req();
         r.depth = Some(3);
-        let p = plan(&r, &Settings::default(), "en", &llm).unwrap();
+        let p = plan(&r, &Settings::default(), "en").unwrap();
         assert_eq!(langs(&p), vec!["zh", "ja", "fi", "SRC"]);
         assert_eq!(engines(&p), vec!["auto"; 4]);
-        let p = plan(&r, &Settings::default(), "zh", &llm).unwrap();
+        let p = plan(&r, &Settings::default(), "zh").unwrap();
         assert_eq!(langs(&p), vec!["en", "ja", "fi", "SRC"]);
         r.depth = Some(1);
-        let p = plan(&r, &Settings::default(), "auto", &llm).unwrap();
+        let p = plan(&r, &Settings::default(), "auto").unwrap();
         assert_eq!(langs(&p), vec!["zh", "SRC"]);
         assert!(p.guessed);
         for bad in [0, 4] {
             r.depth = Some(bad);
             assert_eq!(
-                plan(&r, &Settings::default(), "en", &llm)
-                    .unwrap_err()
-                    .code(),
+                plan(&r, &Settings::default(), "en").unwrap_err().code(),
                 "INVALID_INPUT"
             );
         }
@@ -434,30 +321,22 @@ mod tests {
     fn presets_expand_for_both_families() {
         let mut r = req();
         let s = Settings::default();
-        r.preset = Some("strong".into());
-        let p = plan(&r, &s, "en", &llm).unwrap();
-        assert_eq!(langs(&p), vec!["zh", "ja", "fi", "SRC", "FIX"]);
-        let p = plan(&r, &s, "zh", &llm).unwrap();
-        assert_eq!(langs(&p), vec!["en", "ja", "fi", "SRC", "FIX"]);
-
-        r.preset = Some("standard".into());
-        let s = Settings {
-            roundtrip_llm: Some("opencode-cli".into()),
-            ..Settings::default()
-        };
-        let p = plan(&r, &s, "en", &llm).unwrap();
-        assert_eq!(langs(&p), vec!["zh", "SRC"]);
-        assert_eq!(engines(&p), vec!["opencode-cli", "opencode-cli"]);
-        assert_eq!(langs(&plan(&r, &s, "zh", &llm).unwrap()), vec!["en", "SRC"]);
-
         r.preset = Some("light".into());
-        assert_eq!(
-            langs(&plan(&r, &s, "en", &llm).unwrap()),
-            vec!["zh", "ja", "SRC"]
-        );
+        assert_eq!(langs(&plan(&r, &s, "en").unwrap()), vec!["zh", "ja", "SRC"]);
+        r.preset = Some("standard".into());
+        let p = plan(&r, &s, "en").unwrap();
+        assert_eq!(langs(&p), vec!["zh", "ja", "fi", "SRC"]);
+        assert_eq!(engines(&p), vec!["auto"; 4]);
+        let p = plan(&r, &s, "zh").unwrap();
+        assert_eq!(langs(&p), vec!["en", "ja", "fi", "SRC"]);
+
+        r.preset = Some("strong".into());
+        let p = plan(&r, &s, "en").unwrap();
+        assert_eq!(langs(&p), vec!["zh", "ja", "fi", "SRC"]);
+        assert_eq!(engines(&p), vec!["google", "edge", "google", "edge"]);
 
         r.preset = Some("bogus".into());
-        let err = plan(&r, &s, "en", &llm).unwrap_err();
+        let err = plan(&r, &s, "en").unwrap_err();
         assert_eq!(err.code(), "INVALID_INPUT");
         assert!(err.to_string().contains("light, standard, strong"));
     }
@@ -473,21 +352,15 @@ mod tests {
         r.preset = Some("standard".into());
         r.depth = Some(2);
         r.pivot = "ja".into();
-        assert_eq!(langs(&plan(&r, &s, "en", &llm).unwrap()), vec!["ko", "SRC"]);
+        assert_eq!(langs(&plan(&r, &s, "en").unwrap()), vec!["ko", "SRC"]);
         r.chain.clear();
-        assert_eq!(
-            engines(&plan(&r, &s, "en", &llm).unwrap())[0],
-            "opencode-cli"
-        );
+        assert_eq!(engines(&plan(&r, &s, "en").unwrap()), vec!["auto"; 4]);
         r.preset = None;
-        assert_eq!(
-            langs(&plan(&r, &s, "en", &llm).unwrap()),
-            vec!["zh", "ja", "SRC"]
-        );
+        assert_eq!(langs(&plan(&r, &s, "en").unwrap()), vec!["zh", "ja", "SRC"]);
         r.depth = None;
-        assert_eq!(langs(&plan(&r, &s, "en", &llm).unwrap()), vec!["ja", "SRC"]);
+        assert_eq!(langs(&plan(&r, &s, "en").unwrap()), vec!["ja", "SRC"]);
         r.pivot = "auto".into();
-        assert_eq!(engines(&plan(&r, &s, "en", &llm).unwrap())[3], "edge");
+        assert_eq!(engines(&plan(&r, &s, "en").unwrap())[3], "edge");
     }
 
     #[test]
@@ -498,12 +371,12 @@ mod tests {
         };
         let mut r = req();
         r.depth = Some(1);
-        let p = plan(&r, &s, "auto", &llm).unwrap();
+        let p = plan(&r, &s, "auto").unwrap();
         assert_eq!(langs(&p), vec!["ja", "SRC"]);
         assert!(!p.guessed, "a configured pivot is not a guess");
         // The default preset (depth 2) still leads with the configured pivot.
         r.depth = None;
-        let p = plan(&r, &s, "en", &llm).unwrap();
+        let p = plan(&r, &s, "en").unwrap();
         assert_eq!(langs(&p), vec!["ja", "zh", "SRC"]);
     }
 
@@ -512,13 +385,10 @@ mod tests {
         let mut r = req();
         r.depth = Some(2);
         let s = Settings::default();
-        assert_eq!(
-            langs(&plan(&r, &s, "ja", &llm).unwrap()),
-            vec!["zh", "fi", "SRC"]
-        );
+        assert_eq!(langs(&plan(&r, &s, "ja").unwrap()), vec!["zh", "fi", "SRC"]);
         r.depth = Some(3);
         assert_eq!(
-            langs(&plan(&r, &s, "fi", &llm).unwrap()),
+            langs(&plan(&r, &s, "fi").unwrap()),
             vec!["zh", "ja", "ko", "SRC"]
         );
     }
@@ -528,14 +398,12 @@ mod tests {
         let mut r = req();
         r.pivot = "en".into();
         assert_eq!(
-            langs(&plan(&r, &Settings::default(), "en", &llm).unwrap()),
+            langs(&plan(&r, &Settings::default(), "en").unwrap()),
             vec!["zh", "SRC"]
         );
         r.pivot = "klingon".into();
         assert_eq!(
-            plan(&r, &Settings::default(), "en", &llm)
-                .unwrap_err()
-                .code(),
+            plan(&r, &Settings::default(), "en").unwrap_err().code(),
             "INVALID_INPUT"
         );
     }

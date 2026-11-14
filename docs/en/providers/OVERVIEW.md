@@ -20,14 +20,11 @@ A provider is one translation backend. Every provider reports a stable id, a kin
 | --- | --- | --- |
 | `web` | Public endpoint of a translation website, reverse-engineered | No |
 | `official` | Vendor API with documented authentication | Yes |
-| `llm` | Chat model prompted to translate | Yes |
 
 ## The short version
 
 - Free web endpoints occupy priorities 1-12 and are always registered.
 - Official APIs occupy 20-27 and are registered only when a complete credential set exists.
-- LLM providers occupy 40-42 and require an explicit `api_key`.
-- `claude-cli` (60) and `opencode-cli` (61) run a local agent CLI on your subscription, need no key, and run only when named.
 - LibreTranslate is registered only when `[provider.libretranslate] base_url` is set, because no public instance is alive.
 - `iflytek` is retired upstream and aliased to `iflyrec`.
 

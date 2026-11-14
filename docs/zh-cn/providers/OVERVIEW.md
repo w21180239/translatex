@@ -20,14 +20,11 @@ Provider 是一个翻译后端。每个 Provider 都会报告：稳定 id、类�
 | --- | --- | --- |
 | `web` | 翻译网站的公开接口，逆向得到 | 否 |
 | `official` | 厂商文档化的 API | 是 |
-| `llm` | 用对话模型做翻译 | 是 |
 
 ## 一句话版本
 
 - 免费网页接口占优先级 1-12，始终注册。
 - 官方 API 占 20-27，只在凭据完整时注册。
-- LLM 占 40-42，必须显式配置 `api_key`。
-- `claude-cli`（60）和 `opencode-cli`（61）调用本机 agent CLI，用你的订阅，不需要 key，只在点名时运行。
 - LibreTranslate 只在设置了 `[provider.libretranslate] base_url` 时注册，因为已无公共实例。
 - `iflytek` 上游已停用，别名指向 `iflyrec`。
 

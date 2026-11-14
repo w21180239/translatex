@@ -7,7 +7,7 @@
     {
       "name": "translatex",
       "source": "./integrations/claude-code/plugin",
-      "description": "Translate text and rewrite machine-flavoured prose through a pivot language with the translatex CLI."
+      "description": "Free machine translation for agents through the translatex CLI: keyless engines, JSON output, round-trip checks."
     }
   ]
 }
