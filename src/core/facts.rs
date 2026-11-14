@@ -1,7 +1,7 @@
-//! Fact guard for rewrites: tokens of the input that must survive verbatim.
+//! Fact guard for round trips: tokens of the input that must survive verbatim.
 //!
-//! Machine translation respells names (Aroha -> Aloha) and expands codes (NZD
-//! -> "New Zealand Dinar"); an LLM can drop a number. This lists what the
+//! Machine translation respells names (Aroha -> Aloha), expands codes (NZD
+//! -> "New Zealand Dinar") and can drop a number. This lists what the
 //! output lost so a caller can reject or patch it.
 
 use once_cell::sync::Lazy;

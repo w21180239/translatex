@@ -17,9 +17,6 @@ static KEY_TABLE: Lazy<BTreeMap<&'static str, &'static [&'static str]>> = Lazy::
         ("youdao", &["app_key", "app_secret"][..]),
         ("caiyun", &["token"][..]),
         ("niutrans", &["api_key"][..]),
-        ("openai", &["api_key"][..]),
-        ("anthropic", &["api_key"][..]),
-        ("deepseek", &["api_key"][..]),
     ])
 });
 

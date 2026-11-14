@@ -30,18 +30,6 @@ impl Preserver {
         }))
     }
 
-    /// Every distinct protected span in `text`, in match order, without
-    /// masking: for providers that keep real spans better than placeholders.
-    pub fn spans(&self, text: &str) -> Vec<String> {
-        let mut out: Vec<String> = Vec::new();
-        for span in self.cover(text).1 {
-            if !out.contains(&span) {
-                out.push(span);
-            }
-        }
-        out
-    }
-
     /// Per-byte token index plus the matched text of each token. Patterns
     /// apply in order; a match that adds no uncovered byte gets no token.
     fn cover(&self, text: &str) -> (Vec<Option<usize>>, Vec<String>) {
@@ -173,14 +161,6 @@ mod tests {
         assert!(!masked.contains("example.com"));
         assert!(!masked.contains("fn x()"));
         assert_eq!(p.restore(&masked).unwrap(), src);
-    }
-
-    #[test]
-    fn spans_lists_matches_without_masking() {
-        let p = Preserver::new(&["@code".into()]).unwrap().unwrap();
-        let src = "Run `make test`, then `make test` and `ls`.";
-        assert_eq!(p.spans(src), vec!["`make test`", "`ls`"]);
-        assert!(p.tokens.is_empty(), "spans must not mask");
     }
 
     #[test]

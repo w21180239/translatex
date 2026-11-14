@@ -110,8 +110,7 @@ pub enum Command {
         json: Option<String>,
     },
 
-    /// Translate out through one or more hops and back, to strip machine-flavoured phrasing.
-    #[command(alias = "polish")]
+    /// Translate out through one or more machine-translation hops and back to the source language.
     Roundtrip {
         /// Text to round-trip. Omit to read stdin.
         text: Option<String>,
@@ -124,7 +123,7 @@ pub enum Command {
         #[arg(long, default_value = "auto")]
         pivot: String,
 
-        /// Hop list `[engine:]lang` or `llm-engine:fix`, e.g. claude-cli:zh,google:fi,edge:en.
+        /// Hop list `[engine:]lang`, e.g. google:zh,edge:fi,google:en.
         #[arg(long, value_delimiter = ',')]
         chain: Vec<String>,
 
@@ -132,7 +131,7 @@ pub enum Command {
         #[arg(long, value_parser = clap::value_parser!(u8).range(1..=3))]
         depth: Option<u8>,
 
-        /// Built-in chain: light (2 MT hops), standard (LLM out and back), strong (LLM hops, MT hops, repair).
+        /// Built-in chain: light (2 pivots), standard (3 pivots), strong (3 pivots, google and edge alternating).
         #[arg(long)]
         preset: Option<String>,
 
@@ -155,21 +154,6 @@ pub enum Command {
         /// Caller-supplied id; echoed back.
         #[arg(long)]
         request_id: Option<String>,
-
-        /// Detector command: text on stdin, score 0-1 (higher = more AI-like) on
-        /// its last stdout line. Split into words, no shell.
-        #[arg(long)]
-        scorer: Option<String>,
-
-        /// Run the chain N times (1-5) and keep the run with the most facts,
-        /// then the lowest score. Needs a scorer above 1.
-        #[arg(long, value_parser = clap::value_parser!(u8).range(1..=5))]
-        best_of: Option<u8>,
-
-        /// Climb the preset ladder (roundtrip_ladder) until the score is at or
-        /// below this (0-1). Needs a scorer.
-        #[arg(long)]
-        target_score: Option<f64>,
 
         /// Full request as a JSON object; replaces the other flags.
         #[arg(long)]
@@ -372,13 +356,6 @@ pub fn build_registry(creds: &CredentialStore, settings: &Settings) -> Registry 
     // fanyi.xfyun.cn now needs a logged-in account, so the old `iflytek` web
     // endpoints are gone; iflyrec is iFlytek's open one. Same move as the fork.
     reg.alias("iflytek", "iflyrec");
-    // Keyless but never automatic: they run only when named.
-    reg.register(Arc::new(cli_llm::CliLlm::claude(
-        &settings.provider(cli_llm::CLAUDE_CLI),
-    )));
-    reg.register(Arc::new(cli_llm::CliLlm::opencode(
-        &settings.provider(cli_llm::OPENCODE_CLI),
-    )));
     build_keyed(&mut reg, creds, settings);
     reg
 }
@@ -419,15 +396,6 @@ fn build_keyed(reg: &mut Registry, creds: &CredentialStore, settings: &Settings)
     }
     if has("niutrans") {
         reg.register(Arc::new(niutrans::Niutrans::new(&opts("niutrans"))));
-    }
-    if has("openai") {
-        reg.register(Arc::new(llm::Llm::openai(&opts("openai"))));
-    }
-    if has("anthropic") {
-        reg.register(Arc::new(llm::Llm::anthropic(&opts("anthropic"))));
-    }
-    if has("deepseek") {
-        reg.register(Arc::new(llm::Llm::deepseek(&opts("deepseek"))));
     }
 }
 
@@ -544,9 +512,6 @@ async fn cmd_roundtrip(cli: &Cli, ctx: &Ctx) -> Result<()> {
         preserve,
         timeout_ms,
         request_id,
-        scorer,
-        best_of,
-        target_score,
         json,
     } = &cli.command
     else {
@@ -570,9 +535,6 @@ async fn cmd_roundtrip(cli: &Cli, ctx: &Ctx) -> Result<()> {
             timeout_ms: *timeout_ms,
             idempotency_key: request_id.clone(),
             metadata: Default::default(),
-            scorer: scorer.clone(),
-            best_of: *best_of,
-            target_score: *target_score,
         },
     };
 
@@ -956,7 +918,7 @@ pub fn manifest_document() -> Result<serde_json::Value> {
             {
                 "name": "roundtrip",
                 "command": "translatex roundtrip --json '{request}' --format json",
-                "description": "Translate through a chain of languages (machine translation or a local LLM CLI) and back into the source language, which rewrites the phrasing and strips machine-flavoured cadence. Reports missingFacts for names, numbers and IDs the output lost.",
+                "description": "Translate through a chain of languages with machine translation engines and back into the source language, to check a translation or paraphrase it. Reports missingFacts for names, numbers and IDs the output lost.",
                 "inputSchema": roundtrip_schema
             },
             {

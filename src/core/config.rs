@@ -51,12 +51,6 @@ pub struct Settings {
     /// Default `roundtrip` preset when the request names no chain, preset,
     /// depth or pivot (`light`, `standard`, `strong`).
     pub roundtrip_preset: Option<String>,
-    /// Engine behind the LLM hops of the `standard` and `strong` presets.
-    pub roundtrip_llm: Option<String>,
-    /// Detector command for roundtrip candidates (see `RoundtripRequest::scorer`).
-    pub roundtrip_scorer: Option<String>,
-    /// Presets tried in order when `--target-score` is not met.
-    pub roundtrip_ladder: Option<Vec<String>>,
     pub log: Option<String>,
     /// provider -> extra knobs (base_url, model, instance, ...).
     pub provider: BTreeMap<String, ProviderSettings>,
@@ -70,8 +64,6 @@ pub struct ProviderSettings {
     pub region: Option<String>,
     pub instance: Option<String>,
     pub tier: Option<String>,
-    /// Executable path for CLI-backed providers (`claude-cli`, `opencode-cli`).
-    pub bin: Option<String>,
 }
 
 impl Settings {
@@ -113,9 +105,6 @@ impl Settings {
         }
         if let Ok(v) = std::env::var("TRANSLATEX_ROUNDTRIP_PRESET") {
             self.roundtrip_preset = Some(v);
-        }
-        if let Ok(v) = std::env::var("TRANSLATEX_ROUNDTRIP_LLM") {
-            self.roundtrip_llm = Some(v);
         }
         self
     }
@@ -159,35 +148,6 @@ impl Settings {
             .unwrap_or_else(|| "light".to_string())
     }
 
-    /// Engine for preset LLM hops.
-    pub fn roundtrip_llm(&self) -> String {
-        self.roundtrip_llm
-            .as_deref()
-            .map(|p| p.trim().to_lowercase())
-            .filter(|p| !p.is_empty())
-            .unwrap_or_else(|| "opencode-cli".to_string())
-    }
-
-    /// Configured scorer command; blank means none.
-    pub fn roundtrip_scorer(&self) -> Option<String> {
-        self.roundtrip_scorer
-            .as_deref()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(str::to_string)
-    }
-
-    /// Escalation presets for `--target-score`, in order.
-    pub fn roundtrip_ladder(&self) -> Vec<String> {
-        self.roundtrip_ladder
-            .clone()
-            .unwrap_or_else(|| vec!["standard".into(), "strong".into()])
-            .into_iter()
-            .map(|p| p.trim().to_lowercase())
-            .filter(|p| !p.is_empty())
-            .collect()
-    }
-
     pub fn provider(&self, name: &str) -> ProviderSettings {
         self.provider.get(name).cloned().unwrap_or_default()
     }
@@ -226,25 +186,13 @@ pub const CONFIG_TEMPLATE: &str = r#"# translatex config
 # retries = 2
 # race_width = 3   # provider attempts in flight; 1 is strictly sequential
 # roundtrip_pivot = "zh"   # "auto" picks zh for non-Chinese text, en for Chinese
-# roundtrip_preset = "light"  # light (2 MT hops) | standard (LLM out and back) | strong
-# roundtrip_llm = "opencode-cli"   # engine for preset LLM hops: opencode-cli | claude-cli
-# roundtrip_scorer = "python score.py"   # detector: text on stdin, score 0-1 on the last stdout line
-# roundtrip_ladder = ["standard", "strong"]   # presets tried when --target-score is not met
+# roundtrip_preset = "light"  # light (2 pivots) | standard (3 pivots) | strong (3 pivots, google and edge alternating)
 # log = "warn"
 
 # [provider.googlecloud]
 # region = "global"
 
-# [provider.claude-cli]
-# model = "haiku"
-# bin = "C:/Users/me/.local/bin/claude.exe"   # default: resolved on PATH
 
-# [provider.opencode-cli]
-# model = "opencode-go/deepseek-v4.1-flash"
-
-# [provider.llm]
-# base_url = "https://api.openai.com/v1"
-# model = "gpt-4o-mini"
 "#;
 
 #[cfg(test)]
