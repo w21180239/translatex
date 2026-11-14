@@ -2,7 +2,7 @@
 
 # translatex — Documentation
 
-`translatex` is a free translation CLI for agents: no API key, no signup, no config. It walks 28 providers, rotates credentials, and answers in structured JSON. `roundtrip` humanises AI-sounding text with your own Claude or OpenCode subscription.
+`translatex` is a free translation CLI for agents: no API key, no signup, no config. It walks 24 providers (15 keyless, 9 keyed), rotates credentials, and answers in structured JSON. `roundtrip` sends text through machine-translation hops and back, with a fact check.
 
 ## Start here
 
@@ -23,7 +23,7 @@
 | [install/](install/OVERVIEW.md) | Cargo, prebuilt binaries, first request, shell completion |
 | [cli/](cli/OVERVIEW.md) | Commands, flags, exit codes, config and credential files |
 | [providers/](providers/OVERVIEW.md) | Provider catalogue, priority scheme, fallback semantics, adding a provider |
-| [roundtrip/](roundtrip/OVERVIEW.md) | Humanise AI-sounding text: chains, presets, LLM hops, repair hop, fact guard, measured results |
+| [roundtrip/](roundtrip/OVERVIEW.md) | Machine-translation round trips: chains, presets, fact guard, measured results |
 | [integrations/](integrations/OVERVIEW.md) | npm, release archives, per-harness CLI and skill setup |
 | [api/](api/OVERVIEW.md) | JSON and NDJSON shapes, error taxonomy, agent decision rules |
 | [env/](env/OVERVIEW.md) | Environment variables and their precedence |

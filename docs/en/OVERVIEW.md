@@ -4,14 +4,14 @@
 
 [← Documentation index](../README.md)
 
-`translatex` answers translation requests by walking a priority-ordered list of providers. Free web endpoints come first; official APIs join only when credentials exist; LLM providers sit at the end.
+`translatex` answers translation requests by walking a priority-ordered list of providers. Free web endpoints come first; official APIs join only when credentials exist.
 
 ## What the binary does
 
-- Translates text through 28 providers: 14 free web endpoints, 9 official APIs, 5 LLM providers (two of them run your local Claude Code or OpenCode CLI).
+- Translates text through 24 providers: 15 keyless web endpoints, 9 keyed official APIs.
 - Rotates API keys and cools failing ones down across processes.
 - Keeps up to three providers in flight, so a hung endpoint cannot hide the healthy ones.
-- Round-trips text through a chain of machine-translation or LLM hops to humanise AI-sounding prose, and reports names, numbers and code that went missing.
+- Round-trips text through a chain of machine-translation hops, to check a translation or paraphrase it, and reports names, numbers and code that went missing.
 - Emits JSON, NDJSON, or bare text on stdout; diagnostics go to stderr.
 - Masks regex-defined spans before translation and restores them afterwards.
 - Serves the same engine to agents as a CLI with structured output.
@@ -34,8 +34,6 @@ agent ──▶ CLI
 | --- | --- | --- |
 | 1-12 | Free web endpoints | `google` (1), `edge` (2), `iciba` (3), `mirai` (7), `systran` (12) |
 | 20-27 | Official APIs | `deepl` / `baidu` (20), `azure` (22), `tencent` (26), `youdao` (27) |
-| 40-42 | LLM providers | `openai` (40), `anthropic` (41), `deepseek` (42) |
-| 60-61 | Local agent CLIs, named only | `claude-cli` (60), `opencode-cli` (61) |
 
 Lower numbers are tried first. See [providers/02-priorities-and-fallback.md](providers/02-priorities-and-fallback.md) for how the chain is assembled.
 

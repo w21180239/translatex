@@ -4,9 +4,17 @@ Documentation history. Application changes are recorded here as well while the p
 
 ## Unreleased
 
+### Removed (breaking)
+
+- LLM support. translatex is machine translation only again; LLM rewriting moved to [not-a-bot](https://github.com/w21180239/not-a-bot).
+- The `openai`, `anthropic`, `deepseek`, `claude-cli` and `opencode-cli` providers, the `<llm>:fix` repair hop and its `edits` response field.
+- `roundtrip --scorer`, `--best-of` and `--target-score`, the request fields `scorer`, `bestOf` and `targetScore`, the response fields `score`, `scorer` and `candidates`, and the config key `roundtrip_scorer`.
+- The config keys `roundtrip_llm` and `roundtrip_ladder`, the environment variable `TRANSLATEX_ROUNDTRIP_LLM`, the `bin` setting under `[provider.*]`, the `polish` alias, and `benches/`.
+
 ### Changed
 
-- LLM humanize hops delete sentences that only express feelings or pledges (thanks, excitement, pride, "we remain committed") and closing pleasantries, moving any name, place, number, date or amount in them into a kept sentence. On the 30-text English set in `benches/prompt-lab` this lowered the mean desklib score from 0.530 to 0.410 on the default opencode model.
+- `roundtrip` is machine translation only. Presets: `light` (2 pivots, default), `standard` (3 pivots) and `strong` (3 pivots, google and edge alternating).
+- The provider count is 24: 15 keyless web endpoints and 9 keyed official APIs.
 
 ## 0.3.0 — 2026-11-11
 

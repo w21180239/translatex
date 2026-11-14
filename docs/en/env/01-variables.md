@@ -23,7 +23,6 @@ Cache and cooldown files live under `<home>/cache/`. Setting `TRANSLATEX_HOME` i
 | `TRANSLATEX_TIMEOUT_MS` | Default per-attempt budget. `timeoutMs` in a request overrides it. | `8000` |
 | `TRANSLATEX_ROUNDTRIP_PIVOT` | Default `roundtrip` pivot when the request says `auto`. `--pivot` wins. | `ja` |
 | `TRANSLATEX_ROUNDTRIP_PRESET` | Default `roundtrip` preset when the request names no chain, preset, depth or pivot. | `light` |
-| `TRANSLATEX_ROUNDTRIP_LLM` | Engine behind the LLM hops of the `standard` and `strong` presets. | `claude-cli` |
 | `TRANSLATEX_LOG` | stderr log level | `debug` |
 
 ## Credentials
@@ -41,9 +40,6 @@ Pattern: `TRANSLATEX_<PROVIDER>_<FIELD>`, upper-snake, provider and field separa
 | Caiyun | `TRANSLATEX_CAIYUN_TOKEN` |
 | Niutrans | `TRANSLATEX_NIUTRANS_APIKEY` |
 | Alibaba Cloud | `TRANSLATEX_ALIYUN_ACCESS_KEY_ID`, `TRANSLATEX_ALIYUN_ACCESS_KEY_SECRET` |
-| OpenAI | `TRANSLATEX_OPENAI_API_KEY` |
-| Anthropic | `TRANSLATEX_ANTHROPIC_API_KEY` |
-| DeepSeek | `TRANSLATEX_DEEPSEEK_API_KEY` |
 
 Environment credentials appear with the label `env` and therefore cannot be rotated per-label. Use `credentials.toml` when you need several keys per provider.
 

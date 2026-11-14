@@ -65,7 +65,6 @@ impl Provider for Example {
 | 1-3 | Top web endpoints, best quality and uptime |
 | 4-12 | Other web endpoints |
 | 20-27 | Official APIs |
-| 40-50 | LLM providers |
 
 ## 3. Declare capabilities honestly
 

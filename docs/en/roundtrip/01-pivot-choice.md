@@ -5,7 +5,7 @@
 [← Domain overview](OVERVIEW.md) · [Documentation index](../README.md)
 
 The first half of this page covers the pivot language (2026-11-04). The second
-half covers how many hops, and whether an LLM does them (2026-11-11).
+half covers how many hops (2026-11-11).
 
 ## Choosing the pivot
 
@@ -15,8 +15,8 @@ so the choice was measured rather than guessed.
 
 ## Method
 
-Five deliberately AI-flavoured English sentences (stock openers, hedge phrases,
-"not just X but Y" constructions) were round-tripped through six pivots on
+Five English sentences with stock openers, hedge phrases and
+"not just X but Y" constructions were round-tripped through six pivots on
 2026-11-04, using the default auto chain. For each pair:
 
 - **Word overlap** — Jaccard similarity between content words of the input and
@@ -27,7 +27,7 @@ Five deliberately AI-flavoured English sentences (stock openers, hedge phrases,
 The 2026-11-04 script was not kept. For a quick check on one text, run:
 
 ```bash
-translatex roundtrip "In today's fast-paced digital landscape, …" --from en --pivot ja --format json
+translatex roundtrip "Our comprehensive solution leverages cutting-edge technology." --from en --pivot ja --format json
 ```
 
 ## Results
@@ -55,7 +55,7 @@ de      Our comprehensive solution leverages cutting-edge technology to empower
 ```
 
 German, French and Spanish preserve English sentence structure, so the round trip
-returns almost the input. They are the wrong tool for this job.
+returns almost the input. They are the wrong pivots when the aim is new wording.
 
 ## Recommendation
 
@@ -104,50 +104,31 @@ roundtrip_pivot = "zh"
 
 ## Choosing the depth
 
-Does a second or third machine-translation hop rewrite more? Does an LLM hop
-change the picture? The bench in
-[`benches/roundtrip-depth/`](../../../benches/roundtrip-depth/README.md) answers
-with ten texts per configuration: five AI-flavoured English paragraphs, three
+Does a second or third machine-translation hop rewrite more? Ten texts were
+round-tripped per configuration on 2026-11-11: five English paragraphs, three
 fact-heavy workplace texts (names, numbers, IDs, code) and two Chinese texts.
 
-Method, per text and configuration:
-
 - **Overlap**: content-word Jaccard with the source. Lower means more rewriting.
-- **Tells left**: structural AI tells still present, out of the 10 texts: "not just/only X", "more than just", "it's worth noting", "in today's", "at its core", 不仅, 更是, 值得注意, 当今.
 - **Facts missing**: names, numbers, IDs and code spans the fact guard reports as absent, summed over the corpus.
 - **Latency**: mean wall clock for the whole chain.
 
-```bash
-python benches/roundtrip-depth/measure.py --bin target/release/translatex.exe --out out --configs light,standard-opencode
-```
-
-Results (run on 2026-11-11; 10 texts, one run per configuration):
-
-| Configuration | Overlap | Tells left (of 10) | Facts missing | Latency |
-| --- | --- | --- | --- | --- |
-| light, 1 hop (`--depth 1`, 0.1.x default) | 0.556 | 7 | 5 | 0.5 s |
-| light, 2 hops (0.3 default) | 0.520 | 5 | 5 | 0.9 s |
-| 3 machine-translation hops (`--depth 3`) | 0.480 | 6 | 8 | 1.1 s |
-| standard via opencode-cli (DeepSeek) | 0.446 | 0 | 0 | 14 s |
-| standard via claude-cli (Haiku) | 0.535 | 0 | 0 | 8 s |
-| strong via claude-cli / opencode-cli | 0.369 / 0.396 | 0 / 1 | 1 / 1 | 24 / 28 s |
+| Configuration | Overlap | Facts missing | Latency |
+| --- | --- | --- | --- |
+| 1 hop (`--depth 1`, 0.1.x default) | 0.556 | 5 | 0.5 s |
+| 2 hops (`light`, the default) | 0.520 | 5 | 0.9 s |
+| 3 hops (`--depth 3`, `standard`) | 0.480 | 8 | 1.1 s |
 
 What the numbers say:
 
 - Machine translation changes words and keeps sentence structure, so "not just X, it's Y" survives every depth.
-- Even one machine-translation hop respells names (Aroha became Aloha, Tom became Tomi) and expands codes (NZD became "New Zealand dollars").
-- A third machine-translation hop costs more facts (8 against 5) than it gains in rewriting (overlap 0.480 against 0.520). The default moved from one hop to two; three hops stay available as `--depth 3`.
-- LLM hops remove the structural tells and kept every fact on this corpus.
-- Machine-translation hops placed after an LLM hop can bring a foil back: Finnish "ei ainoastaan ... vaan myös" returned as "not only ... but also". That is why the same chain without a repair hop still left one tell in some runs.
-- The repair hop cut the fact loss of that chain from 3 to 5 facts to 1 and kept most of its rewrite (overlap 0.369 and 0.396 against 0.292 and 0.307 without it). That chain with the repair hop is `strong`.
+- Even one hop respells names (Aroha became Aloha, Tom became Tomi) and expands codes (NZD became "New Zealand dollars").
+- A third hop costs more facts (8 against 5) than it gains in rewriting (overlap 0.480 against 0.520). The default moved from one hop to two; three hops stay available as `--depth 3` and `standard`.
 
-Caveats: ten texts and one run per configuration is a small sample; the tell
-list and the fact guard are heuristics; overlap rewards change, not quality;
-nothing here measures AI detectors, and no result should be read as
-undetectable text.
+Caveats: ten texts and one run per configuration is a small sample; the fact
+guard is a heuristic; overlap rewards change, not quality.
 
 ## Navigation
 
 - ← [Round trip overview](OVERVIEW.md)
-- → [Chains, presets and LLM hops](02-chains-presets-and-llm.md)
+- → [Chains and presets](02-chains-and-presets.md)
 - ↑ [Documentation index](../README.md)

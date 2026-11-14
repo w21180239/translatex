@@ -4,9 +4,17 @@
 
 ## 未发布
 
+### 移除（破坏性变更）
+
+- LLM 支持。translatex 重新只做机器翻译；LLM 改写已移到 [not-a-bot](https://github.com/w21180239/not-a-bot)。
+- `openai`、`anthropic`、`deepseek`、`claude-cli`、`opencode-cli` 这几个 Provider，`<llm>:fix` 修复跳及其 `edits` 响应字段。
+- `roundtrip --scorer`、`--best-of`、`--target-score`，请求字段 `scorer`、`bestOf`、`targetScore`，响应字段 `score`、`scorer`、`candidates`，以及配置键 `roundtrip_scorer`。
+- 配置键 `roundtrip_llm` 和 `roundtrip_ladder`，环境变量 `TRANSLATEX_ROUNDTRIP_LLM`，`[provider.*]` 下的 `bin` 设置，`polish` 别名，以及 `benches/`。
+
 ### 变更
 
-- LLM 去 AI 味改写会删掉只表达情绪或表态的句子（感谢、兴奋、自豪、"we remain committed"）和结尾客套，句中的名字、地名、数字、日期、金额先挪进保留的句子。在 `benches/prompt-lab` 的 30 段英文上，默认 opencode 模型的 desklib 平均分从 0.530 降到 0.410。
+- `roundtrip` 只用机器翻译。预设：`light`（2 个中转，默认）、`standard`（3 个中转）、`strong`（3 个中转，google 与 edge 交替）。
+- Provider 数量为 24：15 个无需 Key 的网页接口和 9 个需要 Key 的官方 API。
 
 ## 0.3.0 — 2026-11-11
 

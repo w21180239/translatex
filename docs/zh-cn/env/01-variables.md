@@ -23,7 +23,6 @@
 | `TRANSLATEX_TIMEOUT_MS` | 默认单次预算；请求里的 `timeoutMs` 覆盖它 | `8000` |
 | `TRANSLATEX_ROUNDTRIP_PIVOT` | 请求写 `auto` 时 `roundtrip` 的默认中转语言；`--pivot` 优先 | `ja` |
 | `TRANSLATEX_ROUNDTRIP_PRESET` | 请求没给 chain、preset、depth、pivot 时 `roundtrip` 的默认预设 | `light` |
-| `TRANSLATEX_ROUNDTRIP_LLM` | `standard`、`strong` 预设里 LLM 跳所用的引擎 | `claude-cli` |
 | `TRANSLATEX_LOG` | stderr 日志级别 | `debug` |
 
 ## 凭据
@@ -41,9 +40,6 @@
 | 彩云 | `TRANSLATEX_CAIYUN_TOKEN` |
 | 小牛 | `TRANSLATEX_NIUTRANS_APIKEY` |
 | 阿里云 | `TRANSLATEX_ALIYUN_ACCESS_KEY_ID`、`TRANSLATEX_ALIYUN_ACCESS_KEY_SECRET` |
-| OpenAI | `TRANSLATEX_OPENAI_API_KEY` |
-| Anthropic | `TRANSLATEX_ANTHROPIC_API_KEY` |
-| DeepSeek | `TRANSLATEX_DEEPSEEK_API_KEY` |
 
 环境变量凭据的标签是 `env`，因此无法按标签轮换。需要单 Provider 多 Key 时请用 `credentials.toml`。
 

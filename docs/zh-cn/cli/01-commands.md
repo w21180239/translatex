@@ -33,10 +33,10 @@ echo "Hello" | translatex translate -t ja
 ## `roundtrip`
 
 ```bash
-translatex roundtrip "In today's fast-paced landscape, …" --from en --format json
-translatex polish draft.md --pivot ja
+translatex roundtrip "Pay NZD 18,900 by Friday." --from en --format json
+translatex roundtrip --from en --pivot ja < draft.md
 translatex roundtrip "…" --from en --preset standard --preserve @code
-translatex roundtrip "…" --from en --chain "opencode-cli:zh,edge:en,opencode-cli:fix"
+translatex roundtrip "…" --from en --chain "google:zh,edge:ja,google:en"
 ```
 
 | 参数 | 默认 | 说明 |
@@ -44,8 +44,8 @@ translatex roundtrip "…" --from en --chain "opencode-cli:zh,edge:en,opencode-c
 | `TEXT` | stdin | 待往返的文本 |
 | `-s, --from` | `auto` | 源语言 |
 | `--pivot` | `auto` | 中转语言 |
-| `--chain` | — | 逗号分隔的跳 `[engine:]lang`；末尾没回到源语言时自动补一跳；`<llm>:fix` 为修复跳 |
-| `--preset` | 配置 `roundtrip_preset`（`light`） | `light`、`standard`、`strong` |
+| `--chain` | — | 逗号分隔的跳 `[engine:]lang`；末尾没回到源语言时自动补一跳 |
+| `--preset` | 配置 `roundtrip_preset`（`light`） | `light`（2 个中转）、`standard`（3 个中转）、`strong`（3 个中转，google 与 edge 交替） |
 | `--depth` | — | 1-3 跳机器翻译，依次经 zh、ja、fi（中文原文为 en、ja、fi） |
 | `-p, --provider` | `auto` | 两跳都用指定 Provider |
 | `--fallback` | 空 | 指定 Provider 之后尝试的列表 |
@@ -54,7 +54,7 @@ translatex roundtrip "…" --from en --chain "opencode-cli:zh,edge:en,opencode-c
 | `--request-id` | 自动生成 | 关联 id |
 | `--json` | — | 完整 `RoundtripRequest`，覆盖其它参数 |
 
-选跳规则，先匹配者生效：`--chain`、`--preset`、`--depth`、`--pivot`，最后是配置里的 `roundtrip_preset`（默认 `light`，两跳机器翻译）。`claude-cli` 和 `opencode-cli` 只在某一跳、预设或 `--provider` 点名时运行。响应带 `chain`、`hops`、`missingFacts` 和 `warnings`；每次运行后都要读 `missingFacts`。链、预设与修复跳见 [roundtrip/02-chains-presets-and-llm.md](../roundtrip/02-chains-presets-and-llm.md)。
+选跳规则，先匹配者生效：`--chain`、`--preset`、`--depth`、`--pivot`，最后是配置里的 `roundtrip_preset`（默认 `light`，两跳机器翻译）。响应带 `chain`、`hops`、`missingFacts` 和 `warnings`；每次运行后都要读 `missingFacts`。链、预设与修复跳见 [roundtrip/02-chains-presets-and-llm.md](../roundtrip/02-chains-presets-and-llm.md)。
 
 结果永远回到源语言。`pivot: auto` 对非中文用中文、对中文用英文；技术类英文的官方备选是 `--pivot ja`，见 [roundtrip/01-pivot-choice.md](../roundtrip/01-pivot-choice.md)。
 
