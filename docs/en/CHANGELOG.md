@@ -2,7 +2,7 @@
 
 Documentation history. Application changes are recorded here as well while the project is pre-1.0.
 
-## Unreleased
+## 0.4.0 — 2026-11-14
 
 ### Removed (breaking)
 
