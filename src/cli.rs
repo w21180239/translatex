@@ -27,7 +27,7 @@ use std::sync::Arc;
       translatex keys deepl --json\n  \n\
       translatex health\n  \
       translatex schema\n  \
-      translatex roundtrip \"In today's landscape, …\" --from en\n\n\
+      translatex roundtrip \"Pay NZD 18,900 by Friday.\" --from en --preset standard\n\n\
 EXIT CODES\n  \
   0 success  1 request error  2 config error  3 chain exhausted  4 network error"
 )]
